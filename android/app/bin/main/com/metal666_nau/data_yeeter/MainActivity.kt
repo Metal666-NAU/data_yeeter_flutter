@@ -1,4 +1,4 @@
-package com.example.data_yeeter_flutter
+package com.metal666_nau.data_yeeter
 
 import io.flutter.embedding.android.FlutterActivity
 
