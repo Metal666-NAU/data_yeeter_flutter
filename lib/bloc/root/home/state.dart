@@ -2,38 +2,40 @@ import '../../../data/friends_repository.dart';
 
 class HomeState {
   final List<Friend> friends;
-  final DiscoveryState? discoveryState;
+  final ActionState? actionState;
   final String? discoveryCode;
-  final bool discoveryCodeCopiedTrigger;
+  final SnackBarMessage? snackBarMessage;
 
   const HomeState({
     this.friends = const [],
-    this.discoveryState,
+    this.actionState,
     this.discoveryCode,
-    this.discoveryCodeCopiedTrigger = false,
+    this.snackBarMessage,
   });
 
   HomeState copyWith({
     List<Friend> Function()? friends,
-    DiscoveryState? Function()? discoveryState,
+    ActionState? Function()? actionState,
     String? Function()? discoveryCode,
-    bool Function()? discoveryCodeCopiedTrigger,
+    SnackBarMessage Function()? snackBarMessage,
   }) =>
       HomeState(
         friends: friends == null ? this.friends : friends.call(),
-        discoveryState: discoveryState == null
-            ? this.discoveryState
-            : discoveryState.call(),
+        actionState:
+            actionState == null ? this.actionState : actionState.call(),
         discoveryCode:
             discoveryCode == null ? this.discoveryCode : discoveryCode.call(),
-        discoveryCodeCopiedTrigger: discoveryCodeCopiedTrigger == null
-            ? this.discoveryCodeCopiedTrigger
-            : discoveryCodeCopiedTrigger.call(),
+        snackBarMessage: snackBarMessage?.call(),
       );
 }
 
-enum DiscoveryState {
-  selectingMode,
-  addingFriend,
-  beingDiscovered,
+enum SnackBarMessage {
+  friendStringCopied,
+  failedToRemoveFriend,
+  friendInformationCopied,
+}
+
+enum ActionState {
+  friendsTab,
+  settingsTab,
 }

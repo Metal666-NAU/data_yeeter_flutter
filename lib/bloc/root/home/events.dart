@@ -15,20 +15,22 @@ class RemoveFriend extends HomeEvent {
   const RemoveFriend(this.friend);
 }
 
-class OpenDiscoveryDialog extends HomeEvent {
-  const OpenDiscoveryDialog();
+class CopyFriendInformation extends HomeEvent {
+  final Friend friend;
+
+  const CopyFriendInformation(this.friend);
 }
 
-class SetDiscoveryState extends HomeEvent {
-  final DiscoveryState discoveryState;
+class SetActionState extends HomeEvent {
+  final ActionState state;
 
-  const SetDiscoveryState(this.discoveryState);
+  const SetActionState(this.state);
 }
 
-class CopyDiscoveryCode extends HomeEvent {
-  const CopyDiscoveryCode();
+class CopyFriendString extends HomeEvent {
+  const CopyFriendString();
 }
 
-class ClosedDiscoveryDialog extends HomeEvent {
-  const ClosedDiscoveryDialog();
+class AddFriendFromString extends HomeEvent {
+  const AddFriendFromString();
 }

@@ -3,4 +3,6 @@ include: package:flutter_lints/flutter.yaml
 linter:
   rules:
     avoid_print: false
+    prefer_relative_imports: true
     prefer_single_quotes: true
+    unawaited_futures: true

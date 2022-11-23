@@ -1,8 +1,8 @@
-import 'package:data_yeeter_flutter/bloc/root/home/events.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/root/home/bloc.dart';
+import '../bloc/root/home/events.dart';
 import '../bloc/root/home/state.dart';
 import '../data/friends_repository.dart';
 
@@ -14,41 +14,48 @@ class HomePage extends StatelessWidget {
         friendItemBuilder: (friend) => _friendItemBuilder(
           friend: friend,
           receiveFileButton: _receiveFileButton,
-          extraActionsButton: () => _extraActionsButton(context, friend),
+          extraActionsButton: () => _extraActionsButton(
+            context,
+            friend,
+          ),
         ),
-        discoveryFab: _discoveryFab(context),
-        bottomPanel: _bottomPanel(),
-        discoveryBottomSheet: (context) => _discoveryBottomSheet(
+        bottomPanel: _bottomPanel(
           context,
-          _discoveryStateButton,
+          _actionButton,
         ),
       );
 
   Widget _mainPanel({
     required Widget Function(Friend) friendItemBuilder,
-    Widget? discoveryFab,
     Widget? bottomPanel,
-    Widget Function(BuildContext context)? discoveryBottomSheet,
   }) =>
-      BlocListener<HomeBloc, HomeState>(
-        listenWhen: (previous, current) =>
-            previous.discoveryState == null && current.discoveryState != null,
-        listener: (context, state) async {
-          if (discoveryBottomSheet == null) {
-            return;
-          }
-
-          await showModalBottomSheet(
-            context: context,
-            builder: (_) => BlocProvider.value(
-              value: context.read<HomeBloc>(),
-              child: discoveryBottomSheet(context),
-            ),
-          ).whenComplete(() =>
-              context.read<HomeBloc>().add(const ClosedDiscoveryDialog()));
-        },
-        child: Scaffold(
-          body: Column(
+      Scaffold(
+        body: BlocListener<HomeBloc, HomeState>(
+          listenWhen: (previous, current) =>
+              previous.snackBarMessage != current.snackBarMessage &&
+              current.snackBarMessage != null,
+          listener: (context, state) => ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(() {
+            switch (state.snackBarMessage) {
+              case SnackBarMessage.friendStringCopied:
+                {
+                  return 'Code copied to clipboard!';
+                }
+              case SnackBarMessage.failedToRemoveFriend:
+                {
+                  return 'Failed to remove friend!';
+                }
+              case SnackBarMessage.friendInformationCopied:
+                {
+                  return 'Information copied to clipboard!';
+                }
+              default:
+                {
+                  return 'unknown message???';
+                }
+            }
+          }()))),
+          child: Column(
             children: [
               Expanded(
                 child: BlocBuilder<HomeBloc, HomeState>(
@@ -62,33 +69,34 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
               ),
+              if (bottomPanel != null) bottomPanel,
             ],
           ),
-          floatingActionButton: discoveryFab,
-          bottomNavigationBar: bottomPanel,
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerDocked,
         ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       );
 
   Widget _friendItemBuilder({
     required Friend friend,
-    Widget Function()? receiveFileButton,
+    Widget Function([bool disable])? receiveFileButton,
     Widget Function()? extraActionsButton,
   }) =>
       ListTile(
-        title: Text(friend.name),
+        title: Text(friend.name ?? ''),
+        subtitle: friend.uuid != null
+            ? null
+            : const Text('Error: user doesn\'t have a UUID.'),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            receiveFileButton?.call(),
+            receiveFileButton?.call(friend.uuid == null),
             extraActionsButton?.call(),
           ].where((element) => element != null).cast<Widget>().toList(),
         ),
       );
 
-  Widget _receiveFileButton() => ElevatedButton(
-        onPressed: () {},
+  Widget _receiveFileButton([bool disable = false]) => ElevatedButton(
+        onPressed: disable ? null : () {},
         child: const Text('Receive File'),
       );
 
@@ -97,12 +105,12 @@ class HomePage extends StatelessWidget {
     Friend friend,
   ) =>
       PopupMenuButton<ExtraFriendActions>(
-        itemBuilder: (context) => [
-          const PopupMenuItem<ExtraFriendActions>(
-            value: ExtraFriendActions.remove,
-            child: Text('Remove'),
-          )
-        ],
+        itemBuilder: (context) => ExtraFriendActions.values
+            .map((action) => PopupMenuItem<ExtraFriendActions>(
+                  value: action,
+                  child: Text(action.label),
+                ))
+            .toList(),
         onSelected: (value) {
           switch (value) {
             case ExtraFriendActions.remove:
@@ -111,139 +119,157 @@ class HomePage extends StatelessWidget {
 
                 break;
               }
+            case ExtraFriendActions.copyInformation:
+              {
+                context.read<HomeBloc>().add(CopyFriendInformation(friend));
+
+                break;
+              }
           }
         },
         child: const Icon(Icons.more_vert),
       );
 
-  Widget _discoveryFab(BuildContext context) => FloatingActionButton(
-        shape: const CircleBorder(),
-        onPressed: () =>
-            context.read<HomeBloc>().add(const OpenDiscoveryDialog()),
-        child: const Icon(Icons.person_add),
-      );
-
-  Widget _bottomPanel() => const BottomAppBar(
-        shape: CircularNotchedRectangle(),
-        child: SizedBox(
-          height: 40,
-        ),
-      );
-
-  Widget _discoveryBottomSheet(
+  Widget _bottomPanel(
     BuildContext context,
     Widget Function(
       BuildContext context,
-      DiscoveryState discoveryState,
-    )
-        discoveryStateButton,
+      void Function() onPressed,
+      IconData iconData,
+      String labelText, [
+      bool selected,
+    ])
+        actionButton,
   ) =>
-      BlocBuilder<HomeBloc, HomeState>(
-        buildWhen: (previous, current) =>
-            previous.discoveryState != current.discoveryState,
-        builder: (context, state) {
-          switch (state.discoveryState) {
-            case DiscoveryState.selectingMode:
-              {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    discoveryStateButton(
-                      context,
-                      DiscoveryState.beingDiscovered,
-                    ),
-                    discoveryStateButton(
-                      context,
-                      DiscoveryState.addingFriend,
-                    ),
-                  ],
-                );
-              }
-            case DiscoveryState.beingDiscovered:
-              {
-                return BlocConsumer<HomeBloc, HomeState>(
-                  listenWhen: (previous, current) =>
-                      !previous.discoveryCodeCopiedTrigger &&
-                      current.discoveryCodeCopiedTrigger,
-                  listener: (context, state) => ScaffoldMessenger.of(context)
-                      .showSnackBar(const SnackBar(
-                          content: Text('Code copied to clipboard!'))),
-                  buildWhen: (previous, current) =>
-                      previous.discoveryCode != current.discoveryCode,
-                  builder: (context, state) => state.discoveryCode == null
-                      ? const Center(
-                          child: Text('Retrieving your code...'),
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: MediaQuery.of(context).size.width <= 500 ? 1 : 0,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width <= 500
+                    ? double.infinity
+                    : 500,
+              ),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: BlocBuilder<HomeBloc, HomeState>(
+                    buildWhen: (previous, current) =>
+                        previous.actionState != current.actionState,
+                    builder: (context, state) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
                           children: [
-                            const Text('Your code is:'),
-                            Text(state.discoveryCode!),
-                            TextButton.icon(
-                              onPressed: () => context
-                                  .read<HomeBloc>()
-                                  .add(const CopyDiscoveryCode()),
-                              icon: const Icon(Icons.content_paste),
-                              label: const Text('Copy'),
-                            )
+                            Expanded(
+                              child: actionButton(
+                                context,
+                                () => context.read<HomeBloc>().add(
+                                    const SetActionState(
+                                        ActionState.friendsTab)),
+                                Icons.people,
+                                'Friends',
+                                state.actionState == ActionState.friendsTab,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: actionButton(
+                                context,
+                                () => context.read<HomeBloc>().add(
+                                    const SetActionState(
+                                        ActionState.settingsTab)),
+                                Icons.settings,
+                                'Settings',
+                                state.actionState == ActionState.settingsTab,
+                              ),
+                            ),
                           ],
                         ),
-                );
-              }
-            default:
-              {
-                return const Text('ERROR');
-              }
-          }
-        },
+                        if (state.actionState == ActionState.friendsTab)
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              actionButton(
+                                context,
+                                () => context
+                                    .read<HomeBloc>()
+                                    .add(const CopyFriendString()),
+                                Icons.code,
+                                'Copy Friend String',
+                              ),
+                              actionButton(
+                                context,
+                                () => context
+                                    .read<HomeBloc>()
+                                    .add(const AddFriendFromString()),
+                                Icons.person_add,
+                                'Add friend from copied string',
+                              ),
+                            ],
+                          )
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       );
 
-  Widget _discoveryStateButton(
+  Widget _actionButton(
     BuildContext context,
-    DiscoveryState discoveryState,
-  ) =>
-      Padding(
-        padding: const EdgeInsets.all(24),
-        child: ElevatedButton.icon(
-          onPressed: () =>
-              context.read<HomeBloc>().add(SetDiscoveryState(discoveryState)),
-          icon: Icon(() {
-            switch (discoveryState) {
-              case DiscoveryState.addingFriend:
-                {
-                  return Icons.person_search;
-                }
-              case DiscoveryState.beingDiscovered:
-                {
-                  return Icons.code;
-                }
-              case DiscoveryState.selectingMode:
-                break;
-            }
-          }()),
-          label: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(() {
-              switch (discoveryState) {
-                case DiscoveryState.addingFriend:
-                  {
-                    return 'Add friend';
-                  }
-                case DiscoveryState.beingDiscovered:
-                  {
-                    return 'Generate code';
-                  }
-                default:
-                  {
-                    return 'ERROR';
-                  }
-              }
-            }()),
+    void Function() onPressed,
+    IconData iconData,
+    String labelText, [
+    bool selected = false,
+  ]) =>
+      ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: selected
+              ? Theme.of(context).colorScheme.primary
+              : ElevationOverlay.applyOverlay(
+                  context,
+                  Theme.of(context).cardColor,
+                  2,
+                ),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          ),
+        ),
+        onPressed: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                iconData,
+                color:
+                    !selected ? null : Theme.of(context).colorScheme.onPrimary,
+              ),
+              Text(
+                labelText,
+                style: !selected
+                    ? null
+                    : TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+              ),
+            ],
           ),
         ),
       );
 }
 
 enum ExtraFriendActions {
-  remove;
+  remove('Remove'),
+  copyInformation('Copy Information');
+
+  final String label;
+
+  const ExtraFriendActions(this.label);
 }

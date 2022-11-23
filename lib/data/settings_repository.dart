@@ -1,36 +1,41 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-// class SettingsRepository {
-//   late SharedPreferences _sharedPreferences;
-
-//   Future<void> init() async {
-//     _sharedPreferences = await SharedPreferences.getInstance();
-
-//     if (_sharedPreferences.getString('uuid') == null) {
-//       await _sharedPreferences.setString('uuid', const Uuid().v4());
-//     }
-//   }
-// }
-
 enum Settings<T extends Object?> {
-  uuid<String?>("uuid");
+  uuid<String?>('uuid'),
+  name<String>('name', 'User');
 
   static late SharedPreferences _sharedPreferences;
 
-  final String _key;
+  final String key;
+  final T? defaultValue;
 
-  const Settings(this._key);
+  const Settings(
+    this.key, [
+    this.defaultValue,
+  ]);
 
-  T get value => _sharedPreferences.get(_key) as T;
+  T get value {
+    Object? value = _sharedPreferences.get(key);
 
-  Future save(T value) async {
+    if (value == null && defaultValue != null) {
+      return defaultValue as T;
+    }
+
+    return value as T;
+  }
+
+  Future<void> save(T value) async {
     if (value == null) {
-      await _sharedPreferences.remove(_key);
+      await _sharedPreferences.remove(key);
     } else {
-      if (value is String?) {
-        await _sharedPreferences.setString(_key, value as String);
+      if (value.runtimeType is String?) {
+        await _sharedPreferences.setString(key, value as String);
+
+        return;
       }
+
+      throw UnsupportedSettingTypeException();
     }
   }
 
@@ -42,3 +47,5 @@ enum Settings<T extends Object?> {
     }
   }
 }
+
+class UnsupportedSettingTypeException implements Exception {}

@@ -7,7 +7,6 @@ import 'bloc/root/events.dart' as root_events;
 import 'bloc/root/home/bloc.dart' as home_bloc;
 import 'bloc/root/home/events.dart' as home_events;
 import 'data/friends_repository.dart';
-import 'data/settings_repository.dart';
 import 'pages/home.dart';
 import 'pages/startup.dart';
 
