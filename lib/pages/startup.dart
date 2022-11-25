@@ -9,10 +9,11 @@ class StartupPage extends StatelessWidget {
   const StartupPage({super.key});
 
   @override
-  Widget build(BuildContext context) =>
+  Widget build(final BuildContext context) =>
       BlocListener<root_bloc.RootBloc, root_state.RootState>(
-        listenWhen: (previous, current) => current is root_state.Home,
-        listener: (context, state) => context.go('/home'),
+        listenWhen: (final previous, final current) =>
+            current is root_state.Home,
+        listener: (final context, final state) => context.go('/home'),
         child: const Scaffold(
           body: Center(
             child: CircularProgressIndicator(),

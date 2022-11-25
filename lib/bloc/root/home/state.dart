@@ -14,10 +14,10 @@ class HomeState {
   });
 
   HomeState copyWith({
-    List<Friend> Function()? friends,
-    ActionState? Function()? actionState,
-    String? Function()? discoveryCode,
-    SnackBarMessage Function()? snackBarMessage,
+    final List<Friend> Function()? friends,
+    final ActionState? Function()? actionState,
+    final String? Function()? discoveryCode,
+    final SnackBarMessage Function()? snackBarMessage,
   }) =>
       HomeState(
         friends: friends == null ? this.friends : friends.call(),

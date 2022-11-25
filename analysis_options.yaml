@@ -2,7 +2,15 @@ include: package:flutter_lints/flutter.yaml
 
 linter:
   rules:
-    avoid_print: false
+    avoid_void_async: true
+    discarded_futures: true
+    prefer_const_declarations: true
+    prefer_final_fields: true
+    prefer_final_in_for_each: true
+    prefer_final_locals: true
+    prefer_final_parameters: true
+    prefer_foreach: true
     prefer_relative_imports: true
     prefer_single_quotes: true
+    sort_pub_dependencies: true
     unawaited_futures: true

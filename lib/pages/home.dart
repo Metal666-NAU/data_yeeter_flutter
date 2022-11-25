@@ -10,9 +10,10 @@ class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) => _mainPanel(
-        friendItemBuilder: (friend) => _friendItemBuilder(
+  Widget build(final BuildContext context) => _mainPanel(
+        friendItemBuilder: (final friend) => _friendItemBuilder(
           friend: friend,
+          sendFileButton: _sendFileButton,
           receiveFileButton: _receiveFileButton,
           extraActionsButton: () => _extraActionsButton(
             context,
@@ -26,16 +27,17 @@ class HomePage extends StatelessWidget {
       );
 
   Widget _mainPanel({
-    required Widget Function(Friend) friendItemBuilder,
-    Widget? bottomPanel,
+    required final Widget Function(Friend) friendItemBuilder,
+    final Widget? bottomPanel,
   }) =>
       Scaffold(
         body: BlocListener<HomeBloc, HomeState>(
-          listenWhen: (previous, current) =>
+          listenWhen: (final previous, final current) =>
               previous.snackBarMessage != current.snackBarMessage &&
               current.snackBarMessage != null,
-          listener: (context, state) => ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(() {
+          listener: (final context, final state) =>
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(() {
             switch (state.snackBarMessage) {
               case SnackBarMessage.friendStringCopied:
                 {
@@ -59,10 +61,11 @@ class HomePage extends StatelessWidget {
             children: [
               Expanded(
                 child: BlocBuilder<HomeBloc, HomeState>(
-                  buildWhen: (previous, current) =>
+                  buildWhen: (final previous, final current) =>
                       previous.friends != current.friends,
-                  builder: (context, state) => ListView.builder(
-                    itemBuilder: (context, index) => friendItemBuilder(
+                  builder: (final context, final state) => ListView.builder(
+                    itemBuilder: (final context, final index) =>
+                        friendItemBuilder(
                       state.friends[index],
                     ),
                     itemCount: state.friends.length,
@@ -77,9 +80,10 @@ class HomePage extends StatelessWidget {
       );
 
   Widget _friendItemBuilder({
-    required Friend friend,
-    Widget Function([bool disable])? receiveFileButton,
-    Widget Function()? extraActionsButton,
+    required final Friend friend,
+    final Widget Function([bool disable])? sendFileButton,
+    final Widget Function([bool disable])? receiveFileButton,
+    final Widget Function()? extraActionsButton,
   }) =>
       ListTile(
         title: Text(friend.name ?? ''),
@@ -89,29 +93,35 @@ class HomePage extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            sendFileButton?.call(friend.uuid == null),
             receiveFileButton?.call(friend.uuid == null),
             extraActionsButton?.call(),
-          ].where((element) => element != null).cast<Widget>().toList(),
+          ].where((final element) => element != null).cast<Widget>().toList(),
         ),
       );
 
-  Widget _receiveFileButton([bool disable = false]) => ElevatedButton(
+  Widget _sendFileButton([final bool disable = false]) => ElevatedButton(
         onPressed: disable ? null : () {},
-        child: const Text('Receive File'),
+        child: const Text('Send'),
+      );
+
+  Widget _receiveFileButton([final bool disable = false]) => ElevatedButton(
+        onPressed: disable ? null : () {},
+        child: const Text('Receive'),
       );
 
   Widget _extraActionsButton(
-    BuildContext context,
-    Friend friend,
+    final BuildContext context,
+    final Friend friend,
   ) =>
       PopupMenuButton<ExtraFriendActions>(
-        itemBuilder: (context) => ExtraFriendActions.values
-            .map((action) => PopupMenuItem<ExtraFriendActions>(
+        itemBuilder: (final context) => ExtraFriendActions.values
+            .map((final action) => PopupMenuItem<ExtraFriendActions>(
                   value: action,
                   child: Text(action.label),
                 ))
             .toList(),
-        onSelected: (value) {
+        onSelected: (final value) {
           switch (value) {
             case ExtraFriendActions.remove:
               {
@@ -131,8 +141,8 @@ class HomePage extends StatelessWidget {
       );
 
   Widget _bottomPanel(
-    BuildContext context,
-    Widget Function(
+    final BuildContext context,
+    final Widget Function(
       BuildContext context,
       void Function() onPressed,
       IconData iconData,
@@ -156,9 +166,9 @@ class HomePage extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: BlocBuilder<HomeBloc, HomeState>(
-                    buildWhen: (previous, current) =>
+                    buildWhen: (final previous, final current) =>
                         previous.actionState != current.actionState,
-                    builder: (context, state) => Column(
+                    builder: (final context, final state) => Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
@@ -221,11 +231,11 @@ class HomePage extends StatelessWidget {
       );
 
   Widget _actionButton(
-    BuildContext context,
-    void Function() onPressed,
-    IconData iconData,
-    String labelText, [
-    bool selected = false,
+    final BuildContext context,
+    final void Function() onPressed,
+    final IconData iconData,
+    final String labelText, [
+    final bool selected = false,
   ]) =>
       ElevatedButton(
         style: ElevatedButton.styleFrom(

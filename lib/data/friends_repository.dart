@@ -9,16 +9,16 @@ class FriendsRepository {
 
   List<Friend> getFriends() => _friendsBox.keys
       .map(
-        (key) => Friend.fromMap(
+        (final key) => Friend.fromMap(
           Map<String, dynamic>.from(_friendsBox.get(key)),
         )..key = key,
       )
       .toList();
 
-  Future<void> addFriend(Friend friend) async =>
+  Future<void> addFriend(final Friend friend) async =>
       friend.key = await _friendsBox.add(friend.toMap());
 
-  Future<bool> removeFriend(Friend friend) async {
+  Future<bool> removeFriend(final Friend friend) async {
     if (!_friendsBox.containsKey(friend.key)) {
       return false;
     }
@@ -45,7 +45,7 @@ class Friend {
         'name': name,
       };
 
-  factory Friend.fromMap([Map<String, dynamic> map = const {}]) => Friend(
+  factory Friend.fromMap([final Map<String, dynamic> map = const {}]) => Friend(
         uuid: map['uuid'],
         name: map['name'],
       );

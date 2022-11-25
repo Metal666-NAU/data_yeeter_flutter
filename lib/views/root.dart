@@ -15,19 +15,19 @@ class Root extends StatelessWidget {
   Root({super.key});
 
   @override
-  Widget build(BuildContext context) => _mainPanel(
+  Widget build(final BuildContext context) => _mainPanel(
         friendsPage: _friendsPage,
         defaultPage: _startupPage,
       );
 
   BlocBuilder<RootBloc, RootState> _mainPanel({
-    required Widget Function() friendsPage,
-    required Widget Function() defaultPage,
+    required final Widget Function() friendsPage,
+    required final Widget Function() defaultPage,
   }) =>
       BlocBuilder<RootBloc, RootState>(
-        buildWhen: (previous, current) =>
+        buildWhen: (final previous, final current) =>
             previous.runtimeType != current.runtimeType,
-        builder: (context, state) => SafeArea(
+        builder: (final context, final state) => SafeArea(
           child: () {
             switch (state.runtimeType) {
               case Home:
@@ -42,7 +42,7 @@ class Root extends StatelessWidget {
   Widget _friendsPage() => RepositoryProvider.value(
         value: _friendsRepository,
         child: BlocProvider(
-          create: (context) =>
+          create: (final context) =>
               HomeBloc(_friendsRepository)..add(const PageLoaded()),
           child: const HomePage(),
         ),

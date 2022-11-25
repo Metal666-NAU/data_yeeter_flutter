@@ -11,20 +11,20 @@ import 'pages/home.dart';
 import 'pages/startup.dart';
 
 void main() {
-  FriendsRepository friendsRepository = FriendsRepository();
+  final FriendsRepository friendsRepository = FriendsRepository();
 
-  GoRouter goRouter = GoRouter(
+  final GoRouter goRouter = GoRouter(
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) => const StartupPage(),
+        builder: (final context, final state) => const StartupPage(),
       ),
       GoRoute(
         path: '/home',
-        builder: (context, state) => RepositoryProvider.value(
+        builder: (final context, final state) => RepositoryProvider.value(
           value: friendsRepository,
           child: BlocProvider(
-            create: (context) => home_bloc.HomeBloc(friendsRepository)
+            create: (final context) => home_bloc.HomeBloc(friendsRepository)
               ..add(const home_events.PageLoaded()),
             child: const HomePage(),
           ),
@@ -33,29 +33,23 @@ void main() {
     ],
   );
 
-  runApp(MyApp(
-    router: goRouter,
-    //settingsRepository: SettingsRepository(),
-  ));
+  runApp(MyApp(router: goRouter));
 }
 
 class MyApp extends StatelessWidget {
   final RouterConfig<Object> router;
-  //final SettingsRepository settingsRepository;
 
   const MyApp({
     super.key,
     required this.router,
-    //required this.settingsRepository,
   });
 
   @override
-  Widget build(BuildContext context) => RepositoryProvider(
-        //create: (context) => SettingsRepository(),
-        create: (context) {},
+  Widget build(final BuildContext context) => RepositoryProvider(
+        create: (final context) {},
         child: BlocProvider(
-          create: (context) => root_bloc.RootBloc(/*settingsRepository*/)
-            ..add(root_events.Startup()),
+          create: (final context) =>
+              root_bloc.RootBloc()..add(root_events.Startup()),
           child: MaterialApp.router(
             title: 'DataYeeter',
             theme: ThemeData(

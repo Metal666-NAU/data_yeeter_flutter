@@ -16,7 +16,7 @@ enum Settings<T extends Object?> {
   ]);
 
   T get value {
-    Object? value = _sharedPreferences.get(key);
+    final Object? value = _sharedPreferences.get(key);
 
     if (value == null && defaultValue != null) {
       return defaultValue as T;
@@ -25,7 +25,7 @@ enum Settings<T extends Object?> {
     return value as T;
   }
 
-  Future<void> save(T value) async {
+  Future<void> save(final T value) async {
     if (value == null) {
       await _sharedPreferences.remove(key);
     } else {

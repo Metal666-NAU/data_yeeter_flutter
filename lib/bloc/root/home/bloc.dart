@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../data/friends_repository.dart';
-import '../../../data/settings_repository.dart';
+import '../../../data/settings.dart';
 import 'events.dart' as home_events;
 import 'state.dart' as home_state;
 
@@ -12,14 +12,14 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
   final FriendsRepository _friendsRepository;
 
   HomeBloc(this._friendsRepository) : super(const home_state.HomeState()) {
-    on<home_events.PageLoaded>((event, emit) async {
+    on<home_events.PageLoaded>((final event, final emit) async {
       await _friendsRepository.init();
 
       emit(state.copyWith(
         friends: () => _friendsRepository.getFriends(),
       ));
     });
-    on<home_events.RemoveFriend>((event, emit) async {
+    on<home_events.RemoveFriend>((final event, final emit) async {
       if (!await _friendsRepository.removeFriend(event.friend)) {
         emit(state.copyWith(
           snackBarMessage: () =>
@@ -30,12 +30,12 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
       }
 
       emit(state.copyWith(
-        friends: () =>
-            List.of(state.friends.where((element) => element != event.friend)),
+        friends: () => List.of(
+            state.friends.where((final element) => element != event.friend)),
       ));
     });
-    on<home_events.CopyFriendInformation>((event, emit) {
-      Clipboard.setData(ClipboardData(
+    on<home_events.CopyFriendInformation>((final event, final emit) async {
+      await Clipboard.setData(ClipboardData(
         text: jsonEncode(event.friend.toMap()),
       ));
 
@@ -45,13 +45,13 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
       ));
     });
     on<home_events.SetActionState>(
-      (event, emit) => emit(state.copyWith(
+      (final event, final emit) => emit(state.copyWith(
         actionState: () =>
             state.actionState == event.state ? null : event.state,
       )),
     );
-    on<home_events.CopyFriendString>((event, emit) {
-      Clipboard.setData(ClipboardData(
+    on<home_events.CopyFriendString>((final event, final emit) async {
+      await Clipboard.setData(ClipboardData(
         text: base64Encode(
           utf8.encode(
             jsonEncode({
@@ -66,7 +66,7 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
         snackBarMessage: () => home_state.SnackBarMessage.friendStringCopied,
       ));
     });
-    on<home_events.AddFriendFromString>((event, emit) async {
+    on<home_events.AddFriendFromString>((final event, final emit) async {
       Friend friend;
 
       try {
