@@ -1,23 +1,85 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../data/fileshare_repository.dart';
 import '../../../data/friends_repository.dart';
 import '../../../data/settings.dart';
 import 'events.dart' as home_events;
 import 'state.dart' as home_state;
 
 class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
+  final FileShareRepository _fileShareRepository;
   final FriendsRepository _friendsRepository;
 
-  HomeBloc(this._friendsRepository) : super(const home_state.HomeState()) {
+  HomeBloc(
+    this._fileShareRepository,
+    this._friendsRepository,
+  ) : super(home_state.HomeState(
+          serverAddress: _getServerAddress(),
+          defaultServerAddress: _getDefaultServerAddress(),
+        )) {
+    _fileShareRepository.progressStream.stream
+        .listen((final event) => add(home_events.FileTransferProgress(event)));
+
     on<home_events.PageLoaded>((final event, final emit) async {
       await _friendsRepository.init();
 
       emit(state.copyWith(
         friends: () => _friendsRepository.getFriends(),
       ));
+    });
+    on<home_events.PrepareFileTransfer>((final event, final emit) async {
+      if (event.friend.uuid == null) {
+        return;
+      }
+
+      await _fileShareRepository.startFileShare(event.friend.uuid!);
+
+      emit(state.copyWith(
+        fileTransferState: () => home_state.FileTransferState(
+          targetUserUUID: event.friend.uuid!,
+          sendOrReceive: true,
+        ),
+      ));
+    });
+    on<home_events.StartFileTransfer>((final event, final emit) async {
+      if (state.fileTransferState == null) {
+        return;
+      }
+
+      await _fileShareRepository.sendFile();
+
+      emit(state.copyWith(
+        fileTransferState: () =>
+            state.fileTransferState?.copyWith(started: () => true),
+      ));
+    });
+    on<home_events.FileTransferProgress>(
+        (final event, final emit) => emit(state.copyWith(
+              fileTransferState: () => state.fileTransferState?.copyWith(
+                progress: () => event.progress,
+              ),
+            )));
+    on<home_events.ReceiveFile>((final event, final emit) async {
+      await _fileShareRepository.connectToFileShare(event.friend.uuid!);
+    });
+    on<home_events.CancelFileTransfer>((final event, final emit) async {
+      if (state.fileTransferState == null) {
+        return;
+      }
+
+      if (!state.fileTransferState!.started) {
+        emit(state.copyWith(
+          fileTransferState: () => null,
+        ));
+
+        return;
+      }
+
+      // TODO: cancel file transfer
     });
     on<home_events.RemoveFriend>((final event, final emit) async {
       if (!await _friendsRepository.removeFriend(event.friend)) {
@@ -90,5 +152,27 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
         state.copyWith(friends: () => List.from(state.friends)..add(friend)),
       );
     });
+    on<home_events.SetServerAddress>(
+        (final event, final emit) => emit(state.copyWith(
+              serverAddress: () => event.address,
+            )));
+    on<home_events.SaveServerAddress>((final event, final emit) async =>
+        await _saveServerAddress(
+            (state.serverAddress ?? '').isEmpty ? null : state.serverAddress));
   }
+
+  static String? _getServerAddress() => kDebugMode
+      ? Settings.debugServerAddress.value
+      : Settings.productionServerAddress.value;
+
+  static String _getDefaultServerAddress() =>
+      (kDebugMode
+          ? Settings.debugServerAddress.defaultValue
+          : Settings.productionServerAddress.defaultValue) ??
+      'ERROR';
+
+  static Future<void> _saveServerAddress(final String? address) async =>
+      await (kDebugMode
+          ? Settings.debugServerAddress.save(address)
+          : Settings.productionServerAddress.save(address));
 }

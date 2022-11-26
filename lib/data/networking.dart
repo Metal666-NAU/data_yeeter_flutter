@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/foundation.dart';
 
-const String serverAddress = '${kDebugMode ? 'localhost' : ''}:80';
+import 'settings.dart';
 
 final Dio dio = Dio()..interceptors.add(CookieManager(CookieJar()));
 
@@ -12,7 +12,7 @@ Future<ServerResponse<T>> post<T>(
   final Map<String, dynamic>? body,
 }) async {
   final Response<T> response = await dio.post<T>(
-    fullPath(path),
+    _fullPath(path),
     data: body,
   );
 
@@ -27,7 +27,7 @@ Future<ServerResponse<T>> get<T>(
   final Map<String, dynamic>? queryParameters,
 }) async {
   final Response<T> response = await dio.get<T>(
-    fullPath(path),
+    _fullPath(path),
     queryParameters: queryParameters,
   );
 
@@ -37,10 +37,13 @@ Future<ServerResponse<T>> get<T>(
   );
 }
 
-String fullPath(final String path) => (kDebugMode
-        ? Uri.http(serverAddress, path)
-        : Uri.https(serverAddress, path))
+String _fullPath(final String path) => (kDebugMode
+        ? Uri.http(_serverAddress(), path)
+        : Uri.https(_serverAddress(), path))
     .toString();
+
+String _serverAddress() =>
+    '${kDebugMode ? Settings.debugServerAddress.valueOrDefault : Settings.productionServerAddress.valueOrDefault}:80';
 
 class ServerResponse<T> {
   final T? body;

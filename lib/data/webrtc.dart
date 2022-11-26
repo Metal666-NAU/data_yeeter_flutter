@@ -90,10 +90,7 @@ Future<String?> createAnswer(final String offer) async {
   return answerDescription.sdp!;
 }
 
-Future<void> startStream(
-  final String answer,
-  final Map<String, dynamic> candidate,
-) async {
+Future<void> startStream(final String answer) async {
   if (_peerConnection == null) {
     return;
   }
@@ -108,12 +105,6 @@ Future<void> startStream(
   log('Received answer: ${description.sdp}');
 
   await _peerConnection!.setRemoteDescription(description);
-
-  await _peerConnection!.addCandidate(RTCIceCandidate(
-    candidate['candidate'],
-    candidate['sdpMid'],
-    candidate['sdpMlineIndex'],
-  ));
 
   controlChannel =
       await _peerConnection!.createDataChannel('control', RTCDataChannelInit());

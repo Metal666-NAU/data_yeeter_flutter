@@ -2,6 +2,7 @@ include: package:flutter_lints/flutter.yaml
 
 linter:
   rules:
+    avoid_bool_literals_in_conditional_expressions: true
     avoid_void_async: true
     discarded_futures: true
     prefer_const_declarations: true
@@ -14,3 +15,4 @@ linter:
     prefer_single_quotes: true
     sort_pub_dependencies: true
     unawaited_futures: true
+    use_if_null_to_convert_nulls_to_bools: true

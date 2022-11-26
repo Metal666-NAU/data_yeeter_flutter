@@ -44,7 +44,7 @@ android {
 
     defaultConfig {
         applicationId "com.metal666_nau.data_yeeter"
-        minSdkVersion flutter.minSdkVersion
+        minSdkVersion 21
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

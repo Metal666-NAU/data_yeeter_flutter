@@ -6,11 +6,13 @@ import 'bloc/root/bloc.dart' as root_bloc;
 import 'bloc/root/events.dart' as root_events;
 import 'bloc/root/home/bloc.dart' as home_bloc;
 import 'bloc/root/home/events.dart' as home_events;
+import 'data/fileshare_repository.dart';
 import 'data/friends_repository.dart';
 import 'pages/home.dart';
 import 'pages/startup.dart';
 
 void main() {
+  final FileShareRepository fileShareRepository = FileShareRepository();
   final FriendsRepository friendsRepository = FriendsRepository();
 
   final GoRouter goRouter = GoRouter(
@@ -24,8 +26,10 @@ void main() {
         builder: (final context, final state) => RepositoryProvider.value(
           value: friendsRepository,
           child: BlocProvider(
-            create: (final context) => home_bloc.HomeBloc(friendsRepository)
-              ..add(const home_events.PageLoaded()),
+            create: (final context) => home_bloc.HomeBloc(
+              fileShareRepository,
+              friendsRepository,
+            )..add(const home_events.PageLoaded()),
             child: const HomePage(),
           ),
         ),

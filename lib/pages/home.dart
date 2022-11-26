@@ -1,62 +1,106 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 
 import '../bloc/root/home/bloc.dart';
 import '../bloc/root/home/events.dart';
 import '../bloc/root/home/state.dart';
 import '../data/friends_repository.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends HookWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(final BuildContext context) => _mainPanel(
-        friendItemBuilder: (final friend) => _friendItemBuilder(
-          friend: friend,
-          sendFileButton: _sendFileButton,
-          receiveFileButton: _receiveFileButton,
-          extraActionsButton: () => _extraActionsButton(
-            context,
-            friend,
-          ),
-        ),
-        bottomPanel: _bottomPanel(
+  Widget build(final BuildContext context) {
+    final TextEditingController serverAddressController =
+        useTextEditingController();
+
+    return _mainPanel(
+      friendItemBuilder: (final friend) => _friendItemBuilder(
+        friend: friend,
+        sendFileButton: ([final disable = false]) => _sendFileButton(
           context,
-          _actionButton,
+          friend,
+          disable,
         ),
-      );
+        receiveFileButton: ([final disable = false]) => _receiveFileButton(
+          context,
+          friend,
+          disable,
+        ),
+        cancelTransferButton: () => _cancelTransferButton(context),
+        extraActionsButton: () => _extraActionsButton(
+          context,
+          friend,
+        ),
+      ),
+      sendDialogBuilder: _sendDialogBuilder,
+      bottomPanel: _bottomPanel(
+        context,
+        _actionButton,
+        () => _friendsTab(context),
+        (
+          final serverAddress,
+          final defaultServerAddress,
+        ) =>
+            _settingsTab(
+          context,
+          serverAddressController..text = serverAddress ?? '',
+          defaultServerAddress,
+        ),
+      ),
+    );
+  }
 
   Widget _mainPanel({
-    required final Widget Function(Friend) friendItemBuilder,
+    required final Widget Function(Friend friend) friendItemBuilder,
+    required final AlertDialog Function(BuildContext context) sendDialogBuilder,
     final Widget? bottomPanel,
   }) =>
       Scaffold(
-        body: BlocListener<HomeBloc, HomeState>(
-          listenWhen: (final previous, final current) =>
-              previous.snackBarMessage != current.snackBarMessage &&
-              current.snackBarMessage != null,
-          listener: (final context, final state) =>
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(SnackBar(content: Text(() {
-            switch (state.snackBarMessage) {
-              case SnackBarMessage.friendStringCopied:
-                {
-                  return 'Code copied to clipboard!';
+        body: MultiBlocListener(
+          listeners: [
+            BlocListener<HomeBloc, HomeState>(
+              listenWhen: (final previous, final current) =>
+                  previous.snackBarMessage != current.snackBarMessage &&
+                  current.snackBarMessage != null,
+              listener: (final context, final state) =>
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(() {
+                switch (state.snackBarMessage) {
+                  case SnackBarMessage.friendStringCopied:
+                    {
+                      return 'Code copied to clipboard!';
+                    }
+                  case SnackBarMessage.failedToRemoveFriend:
+                    {
+                      return 'Failed to remove friend!';
+                    }
+                  case SnackBarMessage.friendInformationCopied:
+                    {
+                      return 'Information copied to clipboard!';
+                    }
+                  default:
+                    {
+                      return 'unknown message???';
+                    }
                 }
-              case SnackBarMessage.failedToRemoveFriend:
-                {
-                  return 'Failed to remove friend!';
-                }
-              case SnackBarMessage.friendInformationCopied:
-                {
-                  return 'Information copied to clipboard!';
-                }
-              default:
-                {
-                  return 'unknown message???';
-                }
-            }
-          }()))),
+              }()))),
+            ),
+            BlocListener<HomeBloc, HomeState>(
+              listenWhen: (final previous, final current) =>
+                  previous.fileTransferState == null &&
+                  current.fileTransferState != null,
+              listener: (final context, final state) async =>
+                  context.read<HomeBloc>().add(await showDialog<bool>(
+                            context: context,
+                            builder: sendDialogBuilder,
+                          ) ??
+                          false
+                      ? const StartFileTransfer()
+                      : const CancelFileTransfer()),
+            ),
+          ],
           child: Column(
             children: [
               Expanded(
@@ -81,8 +125,15 @@ class HomePage extends StatelessWidget {
 
   Widget _friendItemBuilder({
     required final Friend friend,
-    final Widget Function([bool disable])? sendFileButton,
-    final Widget Function([bool disable])? receiveFileButton,
+    final Widget Function([
+      bool disable,
+    ])?
+        sendFileButton,
+    final Widget Function([
+      bool disable,
+    ])?
+        receiveFileButton,
+    final Widget Function()? cancelTransferButton,
     final Widget Function()? extraActionsButton,
   }) =>
       ListTile(
@@ -90,24 +141,77 @@ class HomePage extends StatelessWidget {
         subtitle: friend.uuid != null
             ? null
             : const Text('Error: user doesn\'t have a UUID.'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            sendFileButton?.call(friend.uuid == null),
-            receiveFileButton?.call(friend.uuid == null),
-            extraActionsButton?.call(),
-          ].where((final element) => element != null).cast<Widget>().toList(),
+        trailing: BlocBuilder<HomeBloc, HomeState>(
+          buildWhen: (final previous, final current) =>
+              previous.fileTransferState != current.fileTransferState,
+          builder: (final context, final state) {
+            final bool transfering = state.fileTransferState != null;
+
+            final bool disableActions = friend.uuid == null || transfering;
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: (!transfering ||
+                          !(friend.uuid ==
+                              state.fileTransferState!.targetUserUUID)
+                      ? [
+                          sendFileButton?.call(disableActions),
+                          receiveFileButton?.call(disableActions),
+                          extraActionsButton?.call(),
+                        ]
+                      : [
+                          cancelTransferButton?.call(),
+                        ])
+                  .where((final element) => element != null)
+                  .cast<Widget>()
+                  .toList(),
+            );
+          },
         ),
       );
 
-  Widget _sendFileButton([final bool disable = false]) => ElevatedButton(
-        onPressed: disable ? null : () {},
+  AlertDialog _sendDialogBuilder(final BuildContext context) => AlertDialog(
+        title: const Text('Ready to send?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Send'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+        ],
+      );
+
+  Widget _sendFileButton(
+    final BuildContext context,
+    final Friend friend,
+    final bool disable,
+  ) =>
+      ElevatedButton(
+        onPressed: disable
+            ? null
+            : () => context.read<HomeBloc>().add(PrepareFileTransfer(friend)),
         child: const Text('Send'),
       );
 
-  Widget _receiveFileButton([final bool disable = false]) => ElevatedButton(
-        onPressed: disable ? null : () {},
+  Widget _receiveFileButton(
+    final BuildContext context,
+    final Friend friend, [
+    final bool disable = false,
+  ]) =>
+      ElevatedButton(
+        onPressed: disable
+            ? null
+            : () => context.read<HomeBloc>().add(ReceiveFile(friend)),
         child: const Text('Receive'),
+      );
+
+  Widget _cancelTransferButton(final BuildContext context) => ElevatedButton(
+        onPressed: () =>
+            context.read<HomeBloc>().add(const CancelFileTransfer()),
+        child: const Text('Cancel Transfer'),
       );
 
   Widget _extraActionsButton(
@@ -150,6 +254,12 @@ class HomePage extends StatelessWidget {
       bool selected,
     ])
         actionButton,
+    final Widget Function() friendsTab,
+    final Widget Function(
+      String? serverAddress,
+      String defaultServerAddress,
+    )
+        settingsTab,
   ) =>
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -199,27 +309,12 @@ class HomePage extends StatelessWidget {
                           ],
                         ),
                         if (state.actionState == ActionState.friendsTab)
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              actionButton(
-                                context,
-                                () => context
-                                    .read<HomeBloc>()
-                                    .add(const CopyFriendString()),
-                                Icons.code,
-                                'Copy Friend String',
-                              ),
-                              actionButton(
-                                context,
-                                () => context
-                                    .read<HomeBloc>()
-                                    .add(const AddFriendFromString()),
-                                Icons.person_add,
-                                'Add friend from copied string',
-                              ),
-                            ],
-                          )
+                          friendsTab(),
+                        if (state.actionState == ActionState.settingsTab)
+                          settingsTab(
+                            state.serverAddress,
+                            state.defaultServerAddress,
+                          ),
                       ],
                     ),
                   ),
@@ -272,6 +367,58 @@ class HomePage extends StatelessWidget {
             ],
           ),
         ),
+      );
+
+  Widget _friendsTab(final BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ElevatedButton.icon(
+            onPressed: () =>
+                context.read<HomeBloc>().add(const CopyFriendString()),
+            icon: const Icon(Icons.code),
+            label: const Text('Copy Friend String'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () =>
+                context.read<HomeBloc>().add(const AddFriendFromString()),
+            icon: const Icon(Icons.person_add),
+            label: const Text('Add friend from copied string'),
+          ),
+        ],
+      );
+
+  Widget _settingsTab(
+    final BuildContext context,
+    final TextEditingController serverAddressController,
+    final String defaultServerAddress,
+  ) =>
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: serverAddressController,
+                  decoration: InputDecoration(hintText: defaultServerAddress),
+                  onChanged: (final value) =>
+                      context.read<HomeBloc>().add(SetServerAddress(value)),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () =>
+                    context.read<HomeBloc>().add(const SaveServerAddress()),
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+          ElevatedButton.icon(
+            onPressed: () =>
+                context.read<HomeBloc>().add(const AddFriendFromString()),
+            icon: const Icon(Icons.person_add),
+            label: const Text('Add friend from copied string'),
+          ),
+        ],
       );
 }
 

@@ -1,0 +1,43 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "data_yeeter_flutter",
+      "request": "launch",
+      "type": "dart"
+    },
+    {
+      "name": "data_yeeter_flutter (profile mode)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "data_yeeter_flutter (release mode)",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release"
+    },
+    {
+      "name": "data_yeeter_flutter [Windows]",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "Windows"
+    },
+    {
+      "name": "data_yeeter_flutter [POCO F3]",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "M2012K11AG"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Windows and POCO F3",
+      "configurations": [
+        "data_yeeter_flutter [Windows]",
+        "data_yeeter_flutter [POCO F3]"
+      ]
+    }
+  ]
+}
