@@ -23,8 +23,15 @@ void main() {
       ),
       GoRoute(
         path: '/home',
-        builder: (final context, final state) => RepositoryProvider.value(
-          value: friendsRepository,
+        builder: (final context, final state) => MultiRepositoryProvider(
+          providers: [
+            RepositoryProvider.value(
+              value: fileShareRepository,
+            ),
+            RepositoryProvider.value(
+              value: friendsRepository,
+            ),
+          ],
           child: BlocProvider(
             create: (final context) => home_bloc.HomeBloc(
               fileShareRepository,
@@ -49,24 +56,21 @@ class MyApp extends StatelessWidget {
   });
 
   @override
-  Widget build(final BuildContext context) => RepositoryProvider(
-        create: (final context) {},
-        child: BlocProvider(
-          create: (final context) =>
-              root_bloc.RootBloc()..add(root_events.Startup()),
-          child: MaterialApp.router(
-            title: 'DataYeeter',
-            theme: ThemeData(
-              useMaterial3: true,
-              colorSchemeSeed: Colors.deepPurple,
-            ),
-            darkTheme: ThemeData(
-              useMaterial3: true,
-              colorSchemeSeed: Colors.deepPurple.shade300,
-              brightness: Brightness.dark,
-            ),
-            routerConfig: router,
+  Widget build(final BuildContext context) => BlocProvider(
+        create: (final context) =>
+            root_bloc.RootBloc()..add(root_events.Startup()),
+        child: MaterialApp.router(
+          title: 'DataYeeter',
+          theme: ThemeData(
+            useMaterial3: true,
+            colorSchemeSeed: Colors.deepPurple,
           ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorSchemeSeed: Colors.deepPurple.shade300,
+            brightness: Brightness.dark,
+          ),
+          routerConfig: router,
         ),
       );
 }
