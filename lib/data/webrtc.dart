@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 const Map<String, dynamic> _configuration = {
@@ -8,9 +11,9 @@ const Map<String, dynamic> _configuration = {
   ]
 };
 
+StreamController<List<int>> chunks = StreamController.broadcast();
+
 RTCPeerConnection? _peerConnection;
-RTCDataChannel? controlChannel;
-RTCDataChannel? fileChannel;
 
 Future<void> connect() async {
   await _peerConnection?.dispose();
@@ -76,12 +79,13 @@ Future<String?> createAnswer(final String offer) async {
     switch (channel.label) {
       case 'control':
         {
-          controlChannel = channel;
+          //controlChannel = channel;
           break;
         }
       case 'file':
         {
-          fileChannel = channel;
+          //fileChannel = channel;
+          channel.onMessage = (final data) => chunks.add(data.binary);
           break;
         }
     }
@@ -90,7 +94,10 @@ Future<String?> createAnswer(final String offer) async {
   return answerDescription.sdp!;
 }
 
-Future<void> startStream(final String answer) async {
+Future<void> startStream(
+  final String answer,
+  final String filePath,
+) async {
   if (_peerConnection == null) {
     return;
   }
@@ -106,8 +113,16 @@ Future<void> startStream(final String answer) async {
 
   await _peerConnection!.setRemoteDescription(description);
 
-  controlChannel =
-      await _peerConnection!.createDataChannel('control', RTCDataChannelInit());
-  fileChannel =
-      await _peerConnection!.createDataChannel('file', RTCDataChannelInit());
+  //controlChannel = await _peerConnection!.createDataChannel('control', RTCDataChannelInit());
+  //fileChannel = await _peerConnection!.createDataChannel('file', RTCDataChannelInit());
+
+  final RTCDataChannel fileChannel =
+      (await _peerConnection!.createDataChannel('file', RTCDataChannelInit()));
+
+  await File(filePath).openRead().listen((final event) {
+    chunks.add(event);
+
+    fileChannel
+        .send(RTCDataChannelMessage.fromBinary(Uint8List.fromList(event)));
+  }).asFuture();
 }

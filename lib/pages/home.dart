@@ -28,6 +28,7 @@ class HomePage extends HookWidget {
           friend,
           disable,
         ),
+        fileTransferProgress: _fileTransferProgress,
         cancelTransferButton: () => _cancelTransferButton(context),
         extraActionsButton: () => _extraActionsButton(
           context,
@@ -90,7 +91,8 @@ class HomePage extends HookWidget {
             BlocListener<HomeBloc, HomeState>(
               listenWhen: (final previous, final current) =>
                   previous.fileTransferState == null &&
-                  current.fileTransferState != null,
+                  current.fileTransferState != null &&
+                  current.fileTransferState!.sendOrReceive,
               listener: (final context, final state) async =>
                   context.read<HomeBloc>().add(await showDialog<bool>(
                             context: context,
@@ -133,27 +135,39 @@ class HomePage extends HookWidget {
       bool disable,
     ])?
         receiveFileButton,
+    final Widget Function()? fileTransferProgress,
     final Widget Function()? cancelTransferButton,
     final Widget Function()? extraActionsButton,
   }) =>
       ListTile(
         title: Text(friend.name ?? ''),
-        subtitle: friend.uuid != null
-            ? null
-            : const Text('Error: user doesn\'t have a UUID.'),
+        subtitle: friend.uuid == null
+            ? const Text('Error: user doesn\'t have a UUID.')
+            : BlocBuilder<HomeBloc, HomeState>(
+                buildWhen: (previous, current) =>
+                    (previous.fileTransferState == null ||
+                        current.fileTransferState == null) &&
+                    previous.fileTransferState != current.fileTransferState,
+                builder: (final context, final state) =>
+                    (state.fileTransferState == null
+                        ? null
+                        : fileTransferProgress?.call()) ??
+                    const SizedBox(),
+              ),
         trailing: BlocBuilder<HomeBloc, HomeState>(
           buildWhen: (final previous, final current) =>
+              (previous.fileTransferState == null ||
+                  current.fileTransferState == null) &&
               previous.fileTransferState != current.fileTransferState,
           builder: (final context, final state) {
-            final bool transfering = state.fileTransferState != null;
-
-            final bool disableActions = friend.uuid == null || transfering;
+            final bool transfering = state.fileTransferState != null,
+                disableActions = friend.uuid == null || transfering;
 
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: (!transfering ||
                           !(friend.uuid ==
-                              state.fileTransferState!.targetUserUUID)
+                              state.fileTransferState!.otherUserUuid)
                       ? [
                           sendFileButton?.call(disableActions),
                           receiveFileButton?.call(disableActions),
@@ -206,6 +220,24 @@ class HomePage extends HookWidget {
             ? null
             : () => context.read<HomeBloc>().add(ReceiveFile(friend)),
         child: const Text('Receive'),
+      );
+
+  Widget _fileTransferProgress() => BlocBuilder<HomeBloc, HomeState>(
+        buildWhen: (final previous, final current) =>
+            previous.fileTransferState?.fileInfo?.bytesTransferred !=
+            current.fileTransferState?.fileInfo?.bytesTransferred,
+        builder: (final context, final state) {
+          final FileInfo? fileInfo = state.fileTransferState?.fileInfo;
+
+          return LinearProgressIndicator(
+            value: fileInfo == null ||
+                    fileInfo.bytesTransferred == null ||
+                    fileInfo.size == null ||
+                    fileInfo.size == 0
+                ? null
+                : fileInfo.bytesTransferred! / fileInfo.size!,
+          );
+        },
       );
 
   Widget _cancelTransferButton(final BuildContext context) => ElevatedButton(

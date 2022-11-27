@@ -19,10 +19,16 @@ class StartFileTransfer extends HomeEvent {
   const StartFileTransfer();
 }
 
-class FileTransferProgress extends HomeEvent {
-  final double progress;
+class UpdateFileSize extends HomeEvent {
+  final int size;
 
-  const FileTransferProgress(this.progress);
+  const UpdateFileSize(this.size);
+}
+
+class ReceiveFileChunk extends HomeEvent {
+  final List<int> chunk;
+
+  const ReceiveFileChunk(this.chunk);
 }
 
 class ReceiveFile extends HomeEvent {

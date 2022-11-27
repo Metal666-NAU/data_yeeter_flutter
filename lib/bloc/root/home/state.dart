@@ -58,31 +58,56 @@ enum ActionState {
 }
 
 class FileTransferState {
-  final String targetUserUUID;
+  final String otherUserUuid;
   final bool sendOrReceive;
-  final bool started;
-  final double progress;
+  final FileInfo? fileInfo;
 
   const FileTransferState({
-    required this.targetUserUUID,
+    required this.otherUserUuid,
     required this.sendOrReceive,
-    this.started = false,
-    this.progress = 0,
+    this.fileInfo,
   });
 
   FileTransferState copyWith({
-    final String Function()? targetUserUUID,
+    final String Function()? otherUserUuid,
     final bool Function()? sendOrReceive,
-    final bool Function()? started,
-    final double Function()? progress,
+    final FileInfo? Function()? fileInfo,
   }) =>
       FileTransferState(
-        targetUserUUID: targetUserUUID == null
-            ? this.targetUserUUID
-            : targetUserUUID.call(),
+        otherUserUuid:
+            otherUserUuid == null ? this.otherUserUuid : otherUserUuid.call(),
         sendOrReceive:
             sendOrReceive == null ? this.sendOrReceive : sendOrReceive.call(),
-        started: started == null ? this.started : started.call(),
-        progress: progress == null ? this.progress : progress.call(),
+        fileInfo: fileInfo == null ? this.fileInfo : fileInfo.call(),
+      );
+}
+
+class FileInfo {
+  final String name;
+  final String path;
+
+  final int? size;
+  final int? bytesTransferred;
+
+  FileInfo({
+    required this.name,
+    required this.path,
+    this.size,
+    this.bytesTransferred,
+  });
+
+  FileInfo copyWith({
+    final String Function()? name,
+    final String Function()? path,
+    final int? Function()? size,
+    final int? Function()? bytesTransferred,
+  }) =>
+      FileInfo(
+        name: name == null ? this.name : name.call(),
+        path: path == null ? this.path : path.call(),
+        size: size == null ? this.size : size.call(),
+        bytesTransferred: bytesTransferred == null
+            ? this.bytesTransferred
+            : bytesTransferred.call(),
       );
 }
