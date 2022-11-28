@@ -1,3 +1,4 @@
+import 'package:desktop_window/desktop_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +12,7 @@ import 'data/friends_repository.dart';
 import 'pages/home.dart';
 import 'pages/startup.dart';
 
-void main() {
+void main() async {
   final FileShareRepository fileShareRepository = FileShareRepository();
   final FriendsRepository friendsRepository = FriendsRepository();
 
@@ -43,6 +44,8 @@ void main() {
       ),
     ],
   );
+
+  await DesktopWindow.setMinWindowSize(const Size(300, 250));
 
   runApp(MyApp(router: goRouter));
 }
