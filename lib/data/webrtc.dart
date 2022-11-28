@@ -11,118 +11,111 @@ const Map<String, dynamic> _configuration = {
   ]
 };
 
-StreamController<List<int>> chunks = StreamController.broadcast();
+class WebRTCConnection {
+  final void Function(List<int> chunk) onFileChunk;
 
-RTCPeerConnection? _peerConnection;
+  late final RTCPeerConnection _peerConnection;
 
-Future<void> connect() async {
-  await _peerConnection?.dispose();
+  WebRTCConnection(this.onFileChunk);
 
-  _peerConnection = await createPeerConnection(_configuration);
+  Future<void> connect() async {
+    _peerConnection = await createPeerConnection(_configuration);
 
-  _peerConnection!.onIceCandidate = (final candidate) {
-    _peerConnection!.addCandidate(candidate);
-  };
+    _peerConnection.onIceCandidate = (final candidate) {
+      log('New ICE Candidate available: ${candidate.candidate}');
 
-  _peerConnection!.onIceConnectionState = (final state) {
-    log(state.toString());
-  };
-}
+      _peerConnection.addCandidate(candidate);
+    };
 
-Future<String?> createOffer() async {
-  if (_peerConnection == null) {
-    return null;
+    _peerConnection.onIceConnectionState = (final state) {
+      log('ICE Connection State changed to: ${state.toString()}');
+    };
   }
 
-  final RTCSessionDescription description =
-      await _peerConnection!.createOffer();
+  Future<String?> createOffer() async {
+    final RTCSessionDescription description =
+        await _peerConnection.createOffer();
 
-  if (description.sdp == null) {
-    return null;
-  }
-
-  log('Created offer: ${description.sdp}');
-
-  await _peerConnection!.setLocalDescription(description);
-
-  return description.sdp!;
-}
-
-Future<String?> createAnswer(final String offer) async {
-  if (_peerConnection == null) {
-    return null;
-  }
-
-  final RTCSessionDescription offerDescription =
-      RTCSessionDescription(offer, 'offer');
-
-  if (offerDescription.sdp == null) {
-    return null;
-  }
-
-  log('Received offer: ${offerDescription.sdp}');
-
-  await _peerConnection!.setRemoteDescription(offerDescription);
-
-  final RTCSessionDescription answerDescription =
-      await _peerConnection!.createAnswer();
-
-  if (answerDescription.sdp == null) {
-    return null;
-  }
-
-  log('Created answer: ${answerDescription.sdp}');
-
-  await _peerConnection!.setLocalDescription(answerDescription);
-
-  _peerConnection!.onDataChannel = (final channel) {
-    switch (channel.label) {
-      case 'control':
-        {
-          //controlChannel = channel;
-          break;
-        }
-      case 'file':
-        {
-          //fileChannel = channel;
-          channel.onMessage = (final data) => chunks.add(data.binary);
-          break;
-        }
+    if (description.sdp == null) {
+      return null;
     }
-  };
 
-  return answerDescription.sdp!;
-}
+    log('Offer was created!');
 
-Future<void> startStream(
-  final String answer,
-  final String filePath,
-) async {
-  if (_peerConnection == null) {
-    return;
+    await _peerConnection.setLocalDescription(description);
+
+    return description.sdp!;
   }
 
-  final RTCSessionDescription description =
-      RTCSessionDescription(answer, 'answer');
+  Future<String?> createAnswer(final String offer) async {
+    final RTCSessionDescription offerDescription =
+        RTCSessionDescription(offer, 'offer');
 
-  if (description.sdp == null) {
-    return;
+    if (offerDescription.sdp == null) {
+      return null;
+    }
+
+    log('Offer was received!');
+
+    await _peerConnection.setRemoteDescription(offerDescription);
+
+    final RTCSessionDescription answerDescription =
+        await _peerConnection.createAnswer();
+
+    if (answerDescription.sdp == null) {
+      return null;
+    }
+
+    log('Answer was created!');
+
+    await _peerConnection.setLocalDescription(answerDescription);
+
+    _peerConnection.onDataChannel = (final channel) {
+      switch (channel.label) {
+        case 'control':
+          {
+            //controlChannel = channel;
+            break;
+          }
+        case 'file':
+          {
+            //fileChannel = channel;
+            channel.onMessage = (final data) => onFileChunk(data.binary);
+            break;
+          }
+      }
+    };
+
+    return answerDescription.sdp!;
   }
 
-  log('Received answer: ${description.sdp}');
+  Future<void> startStream(
+    final String answer,
+    final String filePath,
+  ) async {
+    final RTCSessionDescription description =
+        RTCSessionDescription(answer, 'answer');
 
-  await _peerConnection!.setRemoteDescription(description);
+    if (description.sdp == null) {
+      return;
+    }
 
-  //controlChannel = await _peerConnection!.createDataChannel('control', RTCDataChannelInit());
-  //fileChannel = await _peerConnection!.createDataChannel('file', RTCDataChannelInit());
+    log('Answer was received!');
 
-  final RTCDataChannel fileChannel =
-      (await _peerConnection!.createDataChannel('file', RTCDataChannelInit()));
+    await _peerConnection.setRemoteDescription(description);
 
-  await File(filePath).openRead().listen((final event) {
-    chunks.add(event);
+    final RTCDataChannel fileChannel =
+        (await _peerConnection.createDataChannel('file', RTCDataChannelInit()));
 
-    fileChannel
-        .send(RTCDataChannelMessage.fromBinary(Uint8List.fromList(event)));
-  }).asFuture();
+    await File(filePath).openRead().listen((final event) {
+      onFileChunk(event);
+
+      fileChannel
+          .send(RTCDataChannelMessage.fromBinary(Uint8List.fromList(event)));
+    }).asFuture();
+  }
+
+  Future<void> dispose() async {
+    await _peerConnection.dispose();
+  }
 }

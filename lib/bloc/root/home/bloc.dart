@@ -25,8 +25,6 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
           serverAddress: _getServerAddress(),
           defaultServerAddress: _getDefaultServerAddress(),
         )) {
-    _fileShareRepository.init();
-
     _fileShareRepository.sizeStream.stream
         .listen((final event) => add(home_events.UpdateFileSize(event)));
     _fileShareRepository.chunksStream.stream
