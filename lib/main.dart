@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:desktop_window/desktop_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -45,7 +47,9 @@ void main() async {
     ],
   );
 
-  await DesktopWindow.setMinWindowSize(const Size(300, 250));
+  if (Platform.isWindows) {
+    await DesktopWindow.setMinWindowSize(const Size(300, 250));
+  }
 
   runApp(MyApp(router: goRouter));
 }
