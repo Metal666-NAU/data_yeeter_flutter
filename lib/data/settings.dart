@@ -3,9 +3,18 @@ import 'package:uuid/uuid.dart';
 
 enum Settings<T extends Object?> {
   uuid<String?>('uuid'),
-  name<String>('name', 'User'),
-  debugServerAddress<String?>('debugServerAddress', 'localhost'),
-  productionServerAddress<String?>('productionServerAddress', 'localhost');
+  name<String>(
+    'name',
+    'User',
+  ),
+  debugServerAddress<String?>(
+    'debugServerAddress',
+    'wss://localhost:45666',
+  ),
+  productionServerAddress<String?>(
+    'productionServerAddress',
+    'wss://metal666-server.pp.ua:8443',
+  );
 
   static late SharedPreferences _sharedPreferences;
 

@@ -88,20 +88,6 @@ class HomePage extends HookWidget {
                 }
               }()))),
             ),
-            BlocListener<HomeBloc, HomeState>(
-              listenWhen: (final previous, final current) =>
-                  previous.fileTransferState == null &&
-                  current.fileTransferState != null &&
-                  current.fileTransferState!.sendOrReceive,
-              listener: (final context, final state) async =>
-                  context.read<HomeBloc>().add(await showDialog<bool>(
-                            context: context,
-                            builder: sendDialogBuilder,
-                          ) ??
-                          false
-                      ? const StartFileTransfer()
-                      : const CancelFileTransfer()),
-            ),
           ],
           child: Column(
             children: [
@@ -206,7 +192,7 @@ class HomePage extends HookWidget {
       ElevatedButton(
         onPressed: disable
             ? null
-            : () => context.read<HomeBloc>().add(PrepareFileTransfer(friend)),
+            : () => context.read<HomeBloc>().add(StartFileTransfer(friend)),
         child: const Text('Send'),
       );
 

@@ -37,7 +37,7 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
         friends: () => _friendsRepository.getFriends(),
       ));
     });
-    on<home_events.PrepareFileTransfer>((final event, final emit) async {
+    on<home_events.StartFileTransfer>((final event, final emit) async {
       if (event.friend.uuid == null) {
         return;
       }
@@ -52,7 +52,7 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
 
       await _fileShareRepository.startFileShare(
         event.friend.uuid!,
-        basename(file.path!),
+        file.path!,
       );
 
       emit(state.copyWith(
@@ -66,14 +66,6 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
           ),
         ),
       ));
-    });
-    on<home_events.StartFileTransfer>((final event, final emit) async {
-      if (state.fileTransferState?.fileInfo?.path == null) {
-        return;
-      }
-
-      await _fileShareRepository
-          .sendFile(state.fileTransferState!.fileInfo!.path);
     });
     on<home_events.UpdateFileSize>(
         (final event, final emit) => emit(state.copyWith(
@@ -110,19 +102,25 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
         return;
       }
 
-      final String? fileName =
-          await _fileShareRepository.connectToFileShare(event.friend.uuid!);
+      await _fileShareRepository.connectToFileShare(event.friend.uuid!,
+          (final fileName) async {
+        add(home_events.SetIncomingFileInfo(fileName));
+      });
 
-      if (fileName == null) {
-        return;
-      }
-
+      emit(state.copyWith(
+        fileTransferState: () => home_state.FileTransferState(
+          otherUserUuid: event.friend.uuid!,
+          sendOrReceive: false,
+        ),
+      ));
+    });
+    on<home_events.SetIncomingFileInfo>((final event, final emit) async {
       String? path;
 
       if (Platform.isWindows) {
         path = await FilePicker.platform.saveFile(
           dialogTitle: 'Save file',
-          fileName: fileName,
+          fileName: event.fileName,
         );
       } else if (Platform.isAndroid) {
         final String? downloadsPath = (await getExternalStorageDirectories(
@@ -132,7 +130,7 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
         if (downloadsPath != null) {
           path = join(
             downloadsPath,
-            fileName,
+            event.fileName,
           );
         }
       }
@@ -142,30 +140,22 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
       }
 
       emit(state.copyWith(
-        fileTransferState: () => home_state.FileTransferState(
-          otherUserUuid: event.friend.uuid!,
-          sendOrReceive: false,
-          fileInfo: home_state.FileInfo(
-            name: fileName,
+        fileTransferState: () => state.fileTransferState?.copyWith(
+          fileInfo: () => home_state.FileInfo(
+            name: event.fileName,
             path: path!,
           ),
         ),
       ));
+
+      _fileShareRepository.receiveFile();
     });
     on<home_events.CancelFileTransfer>((final event, final emit) async {
-      if (state.fileTransferState == null) {
-        return;
-      }
+      emit(state.copyWith(
+        fileTransferState: () => null,
+      ));
 
-      if (state.fileTransferState!.fileInfo?.bytesTransferred == null) {
-        emit(state.copyWith(
-          fileTransferState: () => null,
-        ));
-
-        return;
-      }
-
-      // TODO: cancel file transfer
+      await _fileShareRepository.cancel();
     });
     on<home_events.RemoveFriend>((final event, final emit) async {
       if (!await _friendsRepository.removeFriend(event.friend)) {

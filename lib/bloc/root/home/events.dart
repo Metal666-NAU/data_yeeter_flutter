@@ -9,14 +9,10 @@ class PageLoaded extends HomeEvent {
   const PageLoaded();
 }
 
-class PrepareFileTransfer extends HomeEvent {
+class StartFileTransfer extends HomeEvent {
   final Friend friend;
 
-  const PrepareFileTransfer(this.friend);
-}
-
-class StartFileTransfer extends HomeEvent {
-  const StartFileTransfer();
+  const StartFileTransfer(this.friend);
 }
 
 class UpdateFileSize extends HomeEvent {
@@ -35,6 +31,12 @@ class ReceiveFile extends HomeEvent {
   final Friend friend;
 
   const ReceiveFile(this.friend);
+}
+
+class SetIncomingFileInfo extends HomeEvent {
+  final String fileName;
+
+  const SetIncomingFileInfo(this.fileName);
 }
 
 class CancelFileTransfer extends HomeEvent {

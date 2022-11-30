@@ -1,87 +1,178 @@
 import 'dart:async';
+import 'dart:convert';
 
-import 'networking.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:path/path.dart';
+
 import 'settings.dart';
 import 'webrtc.dart';
+import 'websockets.dart';
 
 class FileShareRepository {
   final StreamController<int> sizeStream = StreamController.broadcast();
   final StreamController<List<int>> chunksStream = StreamController.broadcast();
 
-  WebRTCConnection? _connection;
+  WebSocketConnection? _webSocketConnection;
+  WebRTCConnection? _webRtcConnection;
 
   Future<void> startFileShare(
     final String targetUuid,
-    final String fileName,
+    final String filePath,
   ) async {
-    await _connection?.dispose();
-
-    _connection = WebRTCConnection((final chunk) => chunksStream.add(chunk));
-
-    await _connection!.connect();
-
-    final String? offer = await _connection!.createOffer();
-
-    if (offer == null) {
+    if (_webSocketConnection != null) {
       return;
     }
 
-    await post('/startFileShare', body: {
-      Settings.uuid.key: Settings.uuid.value,
-      'targetUuid': targetUuid,
-      'offer': offer,
-      'fileName': fileName,
+    _webSocketConnection = WebSocketConnection((final message) async {
+      final Map<String, dynamic> data = jsonDecode(message);
+
+      switch (data['type']) {
+        case 'init':
+          {
+            _webSocketConnection!.send(
+              'sendFile',
+              {
+                'uuid': Settings.uuid.value,
+                'otherUuid': targetUuid,
+                'fileName': basename(filePath),
+              },
+            );
+
+            break;
+          }
+        case 'startSignalling':
+          {
+            await _createWebRTCConnection();
+
+            final String? offer = await _webRtcConnection!.createOffer();
+
+            if (offer == null) {
+              return;
+            }
+
+            _webSocketConnection!.send('offer', offer);
+
+            break;
+          }
+        case 'answer':
+          {
+            final String? answer = data['message'];
+
+            if (answer == null) {
+              return;
+            }
+
+            _startBroadcastingCandidates();
+
+            await _webRtcConnection!.startStream(
+              answer,
+              filePath,
+            );
+
+            break;
+          }
+        case 'candidate':
+          {
+            await _webRtcConnection!.addCandidate(RTCIceCandidate(
+              data['message']['candidate'],
+              data['message']['sdpMid'],
+              data['message']['sdpMLineIndex'],
+            ));
+
+            break;
+          }
+      }
     });
   }
 
-  Future<String?> connectToFileShare(final String sourceUuid) async {
-    await _connection?.dispose();
-
-    _connection = WebRTCConnection((final chunk) => chunksStream.add(chunk));
-
-    await _connection!.connect();
-
-    final Map<String, dynamic>? response = (await get<Map<String, dynamic>>(
-      '/connectToFileShare',
-      queryParameters: {
-        Settings.uuid.key: Settings.uuid.value,
-        'sourceUuid': sourceUuid,
-      },
-    ))
-        .body;
-
-    if (response?['offer'] == null) {
-      return null;
+  Future<void> connectToFileShare(
+    final String sourceUuid,
+    final Future<void> Function(String fileName) onFileName,
+  ) async {
+    if (_webSocketConnection != null) {
+      return;
     }
 
-    final String? answer = await _connection!.createAnswer(response!['offer']);
+    _webSocketConnection = WebSocketConnection((final message) async {
+      final Map<String, dynamic> data = jsonDecode(message);
 
-    if (answer == null) {
-      return null;
-    }
+      switch (data['type']) {
+        case 'init':
+          {
+            _webSocketConnection!.send(
+              'connectToFileShare',
+              {
+                'uuid': Settings.uuid.value,
+                'otherUuid': sourceUuid,
+              },
+            );
 
-    await post('/receiveFile', body: {
-      'answer': answer,
+            break;
+          }
+        case 'fileName':
+          {
+            await onFileName(data['message']);
+
+            break;
+          }
+        case 'offer':
+          {
+            await _createWebRTCConnection();
+
+            final String? answer =
+                await _webRtcConnection!.createAnswer(data['message']);
+
+            if (answer == null) {
+              return;
+            }
+
+            _webSocketConnection!.send('answer', answer);
+
+            _startBroadcastingCandidates();
+
+            break;
+          }
+        case 'candidate':
+          {
+            await _webRtcConnection!.addCandidate(RTCIceCandidate(
+              data['message']['candidate'],
+              data['message']['sdpMid'],
+              data['message']['sdpMLineIndex'],
+            ));
+
+            break;
+          }
+      }
     });
-
-    return response['fileName'];
   }
 
-  Future<void> sendFile(final String path) async {
-    if (_connection == null) {
-      return;
-    }
+  void receiveFile() => _webSocketConnection!.send('receiveFile');
 
-    final String? answer =
-        (await get<Map<String, dynamic>>('/sendFile')).body?['answer'];
+  Future<void> cancel() async {
+    await _webSocketConnection?.dispose();
+    await _webRtcConnection?.dispose();
 
-    if (answer == null) {
-      return;
-    }
-
-    await _connection!.startStream(
-      answer,
-      path,
-    );
+    _webSocketConnection = null;
+    _webRtcConnection = null;
   }
+
+  Future<void> _createWebRTCConnection() async {
+    await _webRtcConnection?.dispose();
+
+    _webRtcConnection =
+        WebRTCConnection((final chunk) => chunksStream.add(chunk));
+
+    await _webRtcConnection!.connect();
+  }
+
+  void _startBroadcastingCandidates() =>
+      _webRtcConnection!.candidateStream.stream
+          .listen((final candidate) => _webSocketConnection?.send(
+                'candidate',
+                {
+                  'candidate': candidate?.candidate,
+                  'sdpMLineIndex': candidate?.sdpMLineIndex,
+                  'sdpMid': candidate?.sdpMid,
+                },
+              ));
 }

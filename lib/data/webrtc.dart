@@ -20,10 +20,13 @@ const Map<String, dynamic> _constraints = {
 };
 
 class WebRTCConnection {
+  late final RTCPeerConnection _peerConnection;
+  RTCDataChannel? _fileChannel;
+
   final void Function(List<int> chunk) onFileChunk;
 
-  late final RTCPeerConnection _peerConnection;
-  late final RTCDataChannel _fileChannel;
+  final StreamController<RTCIceCandidate?> candidateStream =
+      StreamController<RTCIceCandidate?>();
 
   WebRTCConnection(this.onFileChunk);
 
@@ -33,7 +36,7 @@ class WebRTCConnection {
     _peerConnection.onIceCandidate = (final candidate) {
       log('New ICE Candidate available: ${candidate.candidate}');
 
-      _peerConnection.addCandidate(candidate);
+      candidateStream.add(candidate);
     };
 
     _peerConnection.onIceConnectionState = (final state) {
@@ -65,7 +68,9 @@ class WebRTCConnection {
   Future<String?> createAnswer(final String offer) async {
     _peerConnection.onDataChannel = (final channel) {
       if (channel.label == 'file') {
-        channel.onMessage = (final data) => onFileChunk(data.binary);
+        channel.onMessage = (final data) {
+          onFileChunk(data.binary);
+        };
       }
     };
 
@@ -102,16 +107,23 @@ class WebRTCConnection {
 
     await _peerConnection.setRemoteDescription(description);
 
-    await File(filePath).openRead().listen((final event) {
-      onFileChunk(event);
+    await File(filePath).openRead().listen((final chunk) {
+      onFileChunk(chunk);
 
       _fileChannel
-          .send(RTCDataChannelMessage.fromBinary(Uint8List.fromList(event)));
+          ?.send(RTCDataChannelMessage.fromBinary(Uint8List.fromList(chunk)));
     }).asFuture();
+  }
+
+  Future<void> addCandidate(final RTCIceCandidate candidate) async {
+    log('Adding new candidate: ${candidate.candidate}');
+
+    await _peerConnection.addCandidate(candidate);
   }
 
   Future<void> dispose() async {
     await _peerConnection.dispose();
-    await _fileChannel.close();
+    await _fileChannel?.close();
+    await candidateStream.close();
   }
 }
