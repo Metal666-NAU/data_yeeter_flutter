@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:path/path.dart';
@@ -9,19 +10,19 @@ import 'webrtc.dart';
 import 'websockets.dart';
 
 class FileShareRepository {
-  final StreamController<int> sizeStream = StreamController.broadcast();
-  final StreamController<List<int>> chunksStream = StreamController.broadcast();
-
   WebSocketConnection? _webSocketConnection;
   WebRTCConnection? _webRtcConnection;
 
-  Future<void> startFileShare(
-    final String targetUuid,
-    final String filePath,
-  ) async {
+  Future<Stream<List<int>>?> startFileShare({
+    required final String targetUuid,
+    required final String filePath,
+  }) async {
     if (_webSocketConnection != null) {
-      return;
+      return null;
     }
+
+    final StreamController<List<int>> chunkStream =
+        StreamController<List<int>>();
 
     _webSocketConnection = WebSocketConnection((final message) async {
       final Map<String, dynamic> data = jsonDecode(message);
@@ -35,6 +36,7 @@ class FileShareRepository {
                 'uuid': Settings.uuid.value,
                 'otherUuid': targetUuid,
                 'fileName': basename(filePath),
+                'fileSize': await File(filePath).length(),
               },
             );
 
@@ -42,7 +44,7 @@ class FileShareRepository {
           }
         case 'startSignalling':
           {
-            await _createWebRTCConnection();
+            await _createWebRTCConnection(chunkStream);
 
             final String? offer = await _webRtcConnection!.createOffer();
 
@@ -83,15 +85,24 @@ class FileShareRepository {
           }
       }
     });
+
+    return chunkStream.stream;
   }
 
-  Future<void> connectToFileShare(
-    final String sourceUuid,
-    final Future<void> Function(String fileName) onFileName,
-  ) async {
+  Future<Stream<List<int>>?> connectToFileShare({
+    required final String sourceUuid,
+    required final Future<void> Function(
+      String fileName,
+      int fileSize,
+    )
+        onFileInfo,
+  }) async {
     if (_webSocketConnection != null) {
-      return;
+      return null;
     }
+
+    final StreamController<List<int>> chunkStream =
+        StreamController<List<int>>();
 
     _webSocketConnection = WebSocketConnection((final message) async {
       final Map<String, dynamic> data = jsonDecode(message);
@@ -109,15 +120,18 @@ class FileShareRepository {
 
             break;
           }
-        case 'fileName':
+        case 'fileInfo':
           {
-            await onFileName(data['message']);
+            await onFileInfo(
+              data['message']['name'],
+              data['message']['size'],
+            );
 
             break;
           }
         case 'offer':
           {
-            await _createWebRTCConnection();
+            await _createWebRTCConnection(chunkStream);
 
             final String? answer =
                 await _webRtcConnection!.createAnswer(data['message']);
@@ -144,6 +158,8 @@ class FileShareRepository {
           }
       }
     });
+
+    return chunkStream.stream;
   }
 
   void receiveFile() => _webSocketConnection!.send('receiveFile');
@@ -156,11 +172,11 @@ class FileShareRepository {
     _webRtcConnection = null;
   }
 
-  Future<void> _createWebRTCConnection() async {
+  Future<void> _createWebRTCConnection(
+      final StreamController<List<int>> chunkStream) async {
     await _webRtcConnection?.dispose();
 
-    _webRtcConnection =
-        WebRTCConnection((final chunk) => chunksStream.add(chunk));
+    _webRtcConnection = WebRTCConnection(chunkStream);
 
     await _webRtcConnection!.connect();
   }

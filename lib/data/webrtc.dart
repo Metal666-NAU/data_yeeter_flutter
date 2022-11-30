@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 
+import 'package:async/async.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -23,12 +24,12 @@ class WebRTCConnection {
   late final RTCPeerConnection _peerConnection;
   RTCDataChannel? _fileChannel;
 
-  final void Function(List<int> chunk) onFileChunk;
+  final StreamController<List<int>> fileWriteStream;
 
   final StreamController<RTCIceCandidate?> candidateStream =
       StreamController<RTCIceCandidate?>();
 
-  WebRTCConnection(this.onFileChunk);
+  WebRTCConnection(this.fileWriteStream);
 
   Future<void> connect() async {
     _peerConnection = await createPeerConnection(_configuration);
@@ -69,7 +70,12 @@ class WebRTCConnection {
     _peerConnection.onDataChannel = (final channel) {
       if (channel.label == 'file') {
         channel.onMessage = (final data) {
-          onFileChunk(data.binary);
+          fileWriteStream.add(data.binary);
+        };
+        channel.onDataChannelState = (final state) async {
+          if (state == RTCDataChannelState.RTCDataChannelClosed) {
+            await fileWriteStream.close();
+          }
         };
       }
     };
@@ -107,12 +113,28 @@ class WebRTCConnection {
 
     await _peerConnection.setRemoteDescription(description);
 
-    await File(filePath).openRead().listen((final chunk) {
-      onFileChunk(chunk);
+    final ChunkedStreamReader reader =
+        ChunkedStreamReader(File(filePath).openRead());
 
-      _fileChannel
-          ?.send(RTCDataChannelMessage.fromBinary(Uint8List.fromList(chunk)));
-    }).asFuture();
+    Timer.periodic(
+      const Duration(milliseconds: 100),
+      (final timer) async {
+        final List<int> chunk = (await reader.readChunk(64 * 1024)).cast<int>();
+
+        if (chunk.isEmpty) {
+          await _fileChannel!.close();
+          await fileWriteStream.close();
+          timer.cancel();
+
+          return;
+        }
+
+        fileWriteStream.add(chunk);
+
+        await _fileChannel!
+            .send(RTCDataChannelMessage.fromBinary(Uint8List.fromList(chunk)));
+      },
+    );
   }
 
   Future<void> addCandidate(final RTCIceCandidate candidate) async {

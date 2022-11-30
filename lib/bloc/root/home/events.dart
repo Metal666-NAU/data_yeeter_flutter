@@ -15,12 +15,6 @@ class StartFileTransfer extends HomeEvent {
   const StartFileTransfer(this.friend);
 }
 
-class UpdateFileSize extends HomeEvent {
-  final int size;
-
-  const UpdateFileSize(this.size);
-}
-
 class ReceiveFileChunk extends HomeEvent {
   final List<int> chunk;
 
@@ -35,8 +29,12 @@ class ReceiveFile extends HomeEvent {
 
 class SetIncomingFileInfo extends HomeEvent {
   final String fileName;
+  final int fileSize;
 
-  const SetIncomingFileInfo(this.fileName);
+  const SetIncomingFileInfo(
+    this.fileName,
+    this.fileSize,
+  );
 }
 
 class CancelFileTransfer extends HomeEvent {

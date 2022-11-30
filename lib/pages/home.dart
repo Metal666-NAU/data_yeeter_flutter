@@ -130,7 +130,7 @@ class HomePage extends HookWidget {
         subtitle: friend.uuid == null
             ? const Text('Error: user doesn\'t have a UUID.')
             : BlocBuilder<HomeBloc, HomeState>(
-                buildWhen: (previous, current) =>
+                buildWhen: (final previous, final current) =>
                     (previous.fileTransferState == null ||
                         current.fileTransferState == null) &&
                     previous.fileTransferState != current.fileTransferState,

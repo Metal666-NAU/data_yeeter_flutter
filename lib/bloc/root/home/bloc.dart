@@ -25,11 +25,6 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
           serverAddress: _getServerAddress(),
           defaultServerAddress: _getDefaultServerAddress(),
         )) {
-    _fileShareRepository.sizeStream.stream
-        .listen((final event) => add(home_events.UpdateFileSize(event)));
-    _fileShareRepository.chunksStream.stream
-        .listen((final event) => add(home_events.ReceiveFileChunk(event)));
-
     on<home_events.PageLoaded>((final event, final emit) async {
       await _friendsRepository.init();
 
@@ -50,9 +45,13 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
 
       final PlatformFile file = result!.files.single;
 
-      await _fileShareRepository.startFileShare(
-        event.friend.uuid!,
-        file.path!,
+      (await _fileShareRepository.startFileShare(
+        targetUuid: event.friend.uuid!,
+        filePath: file.path!,
+      ))
+          ?.listen(
+        (final event) => add(home_events.ReceiveFileChunk(event)),
+        onDone: () => add(const home_events.CancelFileTransfer()),
       );
 
       emit(state.copyWith(
@@ -67,45 +66,24 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
         ),
       ));
     });
-    on<home_events.UpdateFileSize>(
-        (final event, final emit) => emit(state.copyWith(
-              fileTransferState: () => state.fileTransferState?.copyWith(
-                fileInfo: () => state.fileTransferState?.fileInfo?.copyWith(
-                  size: () => event.size,
-                ),
-              ),
-            )));
-    on<home_events.ReceiveFileChunk>((final event, final emit) async {
-      if (state.fileTransferState?.fileInfo?.path == null) {
-        return;
-      }
-
-      if (!state.fileTransferState!.sendOrReceive) {
-        await File(state.fileTransferState!.fileInfo!.path).writeAsBytes(
-          event.chunk,
-          mode: FileMode.append,
-        );
-      }
-
-      emit(state.copyWith(
-        fileTransferState: () => state.fileTransferState?.copyWith(
-          fileInfo: () => state.fileTransferState?.fileInfo?.copyWith(
-            bytesTransferred: () =>
-                state.fileTransferState?.fileInfo?.bytesTransferred ??
-                0 + event.chunk.length,
-          ),
-        ),
-      ));
-    });
     on<home_events.ReceiveFile>((final event, final emit) async {
       if (event.friend.uuid == null) {
         return;
       }
 
-      await _fileShareRepository.connectToFileShare(event.friend.uuid!,
-          (final fileName) async {
-        add(home_events.SetIncomingFileInfo(fileName));
-      });
+      (await _fileShareRepository.connectToFileShare(
+        sourceUuid: event.friend.uuid!,
+        onFileInfo: (
+          final fileName,
+          final fileSize,
+        ) async {
+          add(home_events.SetIncomingFileInfo(fileName, fileSize));
+        },
+      ))
+          ?.listen(
+        (final event) => add(home_events.ReceiveFileChunk(event)),
+        onDone: () => add(const home_events.CancelFileTransfer()),
+      );
 
       emit(state.copyWith(
         fileTransferState: () => home_state.FileTransferState(
@@ -139,16 +117,45 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
         return;
       }
 
+      final File file = File(path);
+
+      if (await file.exists()) {
+        await file.delete();
+      }
+
       emit(state.copyWith(
         fileTransferState: () => state.fileTransferState?.copyWith(
           fileInfo: () => home_state.FileInfo(
             name: event.fileName,
             path: path!,
+            size: event.fileSize,
           ),
         ),
       ));
 
       _fileShareRepository.receiveFile();
+    });
+    on<home_events.ReceiveFileChunk>((final event, final emit) async {
+      if (state.fileTransferState?.fileInfo?.path == null) {
+        return;
+      }
+
+      if (!state.fileTransferState!.sendOrReceive) {
+        await File(state.fileTransferState!.fileInfo!.path).writeAsBytes(
+          event.chunk,
+          mode: FileMode.append,
+        );
+      }
+
+      emit(state.copyWith(
+        fileTransferState: () => state.fileTransferState!.copyWith(
+          fileInfo: () => state.fileTransferState!.fileInfo!.copyWith(
+            bytesTransferred: () =>
+                (state.fileTransferState!.fileInfo!.bytesTransferred ?? 0) +
+                event.chunk.length,
+          ),
+        ),
+      ));
     });
     on<home_events.CancelFileTransfer>((final event, final emit) async {
       emit(state.copyWith(
