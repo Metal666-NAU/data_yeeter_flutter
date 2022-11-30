@@ -22,6 +22,8 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
     this._fileShareRepository,
     this._friendsRepository,
   ) : super(home_state.HomeState(
+          name: Settings.name.value,
+          defaultName: Settings.name.defaultValue ?? '',
           serverAddress: _getServerAddress(),
           defaultServerAddress: _getDefaultServerAddress(),
         )) {
@@ -235,6 +237,12 @@ class HomeBloc extends Bloc<home_events.HomeEvent, home_state.HomeState> {
         state.copyWith(friends: () => List.from(state.friends)..add(friend)),
       );
     });
+    on<home_events.SetName>((final event, final emit) => emit(state.copyWith(
+          name: () => event.name,
+        )));
+    on<home_events.SaveName>((final event, final emit) async => await Settings
+        .name
+        .save((state.name ?? '').isEmpty ? null : state.name));
     on<home_events.SetServerAddress>(
         (final event, final emit) => emit(state.copyWith(
               serverAddress: () => event.address,

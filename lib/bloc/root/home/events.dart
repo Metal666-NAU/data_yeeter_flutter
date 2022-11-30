@@ -67,6 +67,16 @@ class AddFriendFromString extends HomeEvent {
   const AddFriendFromString();
 }
 
+class SetName extends HomeEvent {
+  final String? name;
+
+  const SetName(this.name);
+}
+
+class SaveName extends HomeEvent {
+  const SaveName();
+}
+
 class SetServerAddress extends HomeEvent {
   final String? address;
 

@@ -12,8 +12,8 @@ class HomePage extends HookWidget {
 
   @override
   Widget build(final BuildContext context) {
-    final TextEditingController serverAddressController =
-        useTextEditingController();
+    final TextEditingController nameController = useTextEditingController(),
+        serverAddressController = useTextEditingController();
 
     return _mainPanel(
       friendItemBuilder: (final friend) => _friendItemBuilder(
@@ -41,13 +41,18 @@ class HomePage extends HookWidget {
         _actionButton,
         () => _friendsTab(context),
         (
+          final name,
+          final defaultName,
           final serverAddress,
           final defaultServerAddress,
         ) =>
             _settingsTab(
           context,
+          nameController..text = name ?? '',
+          defaultName,
           serverAddressController..text = serverAddress ?? '',
           defaultServerAddress,
+          _settingEditor,
         ),
       ),
     );
@@ -274,6 +279,8 @@ class HomePage extends HookWidget {
         actionButton,
     final Widget Function() friendsTab,
     final Widget Function(
+      String? name,
+      String defaultName,
       String? serverAddress,
       String defaultServerAddress,
     )
@@ -330,6 +337,8 @@ class HomePage extends HookWidget {
                           friendsTab(),
                         if (state.actionState == ActionState.settingsTab)
                           settingsTab(
+                            state.name,
+                            state.defaultName,
                             state.serverAddress,
                             state.defaultServerAddress,
                           ),
@@ -407,34 +416,55 @@ class HomePage extends HookWidget {
 
   Widget _settingsTab(
     final BuildContext context,
+    final TextEditingController nameController,
+    final String defaultName,
     final TextEditingController serverAddressController,
     final String defaultServerAddress,
+    final Widget Function(
+      TextEditingController controller,
+      String defaultValue,
+      void Function(String value) onChanged,
+      void Function() onSet,
+    )
+        settingEditor,
   ) =>
       Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: serverAddressController,
-                  decoration: InputDecoration(hintText: defaultServerAddress),
-                  onChanged: (final value) =>
-                      context.read<HomeBloc>().add(SetServerAddress(value)),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () =>
-                    context.read<HomeBloc>().add(const SaveServerAddress()),
-                child: const Text('Save'),
-              ),
-            ],
+          settingEditor(
+            nameController,
+            defaultName,
+            (final value) => context.read<HomeBloc>().add(SetName(value)),
+            () => context.read<HomeBloc>().add(const SaveName()),
           ),
-          ElevatedButton.icon(
-            onPressed: () =>
-                context.read<HomeBloc>().add(const AddFriendFromString()),
-            icon: const Icon(Icons.person_add),
-            label: const Text('Add friend from copied string'),
+          settingEditor(
+            serverAddressController,
+            defaultServerAddress,
+            (final value) =>
+                context.read<HomeBloc>().add(SetServerAddress(value)),
+            () => context.read<HomeBloc>().add(const SaveServerAddress()),
+          ),
+        ],
+      );
+
+  Widget _settingEditor(
+    final TextEditingController controller,
+    final String defaultValue,
+    final void Function(String value) onChanged,
+    final void Function() onSet,
+  ) =>
+      Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller,
+              decoration: InputDecoration(hintText: defaultValue),
+              onChanged: onChanged,
+            ),
+          ),
+          ElevatedButton(
+            onPressed: onSet,
+            child: const Text('Save'),
           ),
         ],
       );

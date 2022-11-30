@@ -6,6 +6,8 @@ class HomeState {
   final String? discoveryCode;
   final SnackBarMessage? snackBarMessage;
   final FileTransferState? fileTransferState;
+  final String? name;
+  final String defaultName;
   final String? serverAddress;
   final String defaultServerAddress;
 
@@ -15,6 +17,8 @@ class HomeState {
     this.discoveryCode,
     this.snackBarMessage,
     this.fileTransferState,
+    this.name,
+    required this.defaultName,
     this.serverAddress,
     required this.defaultServerAddress,
   });
@@ -25,6 +29,8 @@ class HomeState {
     final String? Function()? discoveryCode,
     final SnackBarMessage Function()? snackBarMessage,
     final FileTransferState? Function()? fileTransferState,
+    final String? Function()? name,
+    final String Function()? defaultName,
     final String? Function()? serverAddress,
     final String Function()? defaultServerAddress,
   }) =>
@@ -38,6 +44,9 @@ class HomeState {
         fileTransferState: fileTransferState == null
             ? this.fileTransferState
             : fileTransferState.call(),
+        name: name == null ? this.name : name.call(),
+        defaultName:
+            defaultName == null ? this.defaultName : defaultName.call(),
         serverAddress:
             serverAddress == null ? this.serverAddress : serverAddress.call(),
         defaultServerAddress: defaultServerAddress == null
