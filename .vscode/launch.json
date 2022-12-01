@@ -29,14 +29,27 @@
       "request": "launch",
       "type": "dart",
       "deviceId": "M2012K11AG"
+    },
+    {
+      "name": "data_yeeter_flutter [Pixel 6]",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "Android SDK built for x86"
     }
   ],
   "compounds": [
     {
-      "name": "Windows and POCO F3",
+      "name": "data_yeeter_flutter [Windows & POCO F3]",
       "configurations": [
         "data_yeeter_flutter [Windows]",
         "data_yeeter_flutter [POCO F3]"
+      ]
+    },
+    {
+      "name": "data_yeeter_flutter [Windows & Pixel 6]",
+      "configurations": [
+        "data_yeeter_flutter [Windows]",
+        "data_yeeter_flutter [Pixel 6]"
       ]
     }
   ]

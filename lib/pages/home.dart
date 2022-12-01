@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:go_router/go_router.dart';
 
 import '../bloc/root/home/bloc.dart';
 import '../bloc/root/home/events.dart';
@@ -443,6 +444,11 @@ class HomePage extends HookWidget {
             (final value) =>
                 context.read<HomeBloc>().add(SetServerAddress(value)),
             () => context.read<HomeBloc>().add(const SaveServerAddress()),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => context.go('/credits'),
+            icon: const Icon(Icons.info),
+            label: const Text('Credits'),
           ),
         ],
       );

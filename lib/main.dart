@@ -11,6 +11,7 @@ import 'bloc/root/home/bloc.dart' as home_bloc;
 import 'bloc/root/home/events.dart' as home_events;
 import 'data/fileshare_repository.dart';
 import 'data/friends_repository.dart';
+import 'pages/credits.dart';
 import 'pages/home.dart';
 import 'pages/startup.dart';
 
@@ -43,6 +44,10 @@ void main() async {
             child: const HomePage(),
           ),
         ),
+      ),
+      GoRoute(
+        path: '/credits',
+        builder: (final context, final state) => const CreditsPage(),
       ),
     ],
   );
